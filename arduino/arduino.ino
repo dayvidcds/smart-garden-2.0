@@ -9,8 +9,8 @@
 #define SENSOR_UMI_SOLO2 A2
 #define SENSOR_UMI_SOLO3 A3
 
-#define SMS_VCC 7
-#define SMS_GND 6
+#define SMS_VCC 6
+#define SMS_GND 7
 
 #define SOLO_SECO 40
 #define SOLO_UMIDO 60
@@ -24,7 +24,7 @@ Canal canais[3] = { canal1, canal2, canal3 };
 
 int MES = 1;
 
-int getCaixaByCanalAndMes(int mes, int canal, char sequencia[56][3]) {
+int getCaixaByCanalAndMes(int mes, int canal) {
     for (int i = 0; i <= 56; i++) {
         if (sequencia[i][0] == mes) {
             while (sequencia[i][0] == mes) {
@@ -74,7 +74,7 @@ void loop() {
       if (media < SOLO_SECO) {
         Serial.println("Solo seco...");
         Serial.println("Solicitar irrigacao!");
-        int resul = getCaixaByCanalAndMes(MES, canais[i].getNome(), sequencia);   
+        int resul = getCaixaByCanalAndMes(MES, canais[i].getNome());   
         Serial.print("CAIXA: ");
         Serial.println(resul);
         if (resul == 1){
