@@ -1,5 +1,5 @@
-#define BOMBA 0
-#define DATA_INPUT 1
+#define BOMBA 7
+#define DATA_INPUT 2
 
 void setup() {                
   pinMode(BOMBA, OUTPUT);

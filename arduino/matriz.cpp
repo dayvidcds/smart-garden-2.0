@@ -1,4 +1,4 @@
-
+//mes, canal, caixa
 const char sequencia[][3] = {
   1,1,1,
   

@@ -1,6 +1,5 @@
 #include "canal.cpp";
 #include "matriz.cpp";
-#include "display.cpp";
 #include "sensor_de_temp_umi.cpp";
 #include <EEPROM.h>
 
@@ -31,13 +30,9 @@ Canal canal3(3, SENSOR_UMI_SOLO3, SENSOR_UMI_SOLO3, SENSOR_UMI_SOLO3, SMS_VCC, S
 #define QUANT_CANAIS 3
 Canal canais[3] = { canal1, canal2, canal3 };
 
-LiquidCrystal_I2C lcdParam(0x27, 16, 2); // Instanciando Display LCD
-Display lcd(&lcdParam, true); // Passando como parâmetro o objeto lcdParam no objeto lcd
-
 int MES = 1;
 int comando = 0;
 
-void lerSensor();
 int getCaixaByCanalAndMes(int mes, int canal);
 String leStringSerial();
 
@@ -50,96 +45,90 @@ void setup() {
   digitalWrite(SMS_GND, LOW);
   Serial.begin(9600);
   dht.iniciar();
-  lcd.iniciar();
-  lcd.imprimir("Iniciando...");
-   delay(2000);
-  Serial.println("COMANDO ==> ");
+  delay(2000);
   comando = EEPROM.read(1);
   if (comando == 0 || comando == 1) {
-    lcd.imprimir("Comandos lidos"); 
   }
   else {
     comando = 0;
-    lcd.imprimir("Aguardando comandos");
   }
-  Serial.println(comando);
 }
   
 void loop() {
   if (Serial.available() > 0){
       String recebido = leStringSerial();
-      if (recebido.toInt() != comando) {
-        comando = recebido.toInt();
-        EEPROM.write(1, comando);  
-      }
-  }
-  switch (comando) {
-    case 0:  
-      lcd.apagarTudo();
-      lcd.imprimir("comando 0");
-      break;
-     case 1:
-      lcd.apagarTudo();
-      dht.ler();
-      lcd.imprimir("T:", 0, 0);
-      lcd.imprimir(dht.getTemp(), 3, 0);
-      break; 
-  }
-  delay (2000);
-  /*if (Serial.available() > 0){
-    Serial.println("Recebendo mes...");
-    String recebido = leStringSerial();
-    MES = recebido.toInt();
-    EEPROM.write(0, MES);
-    for (int i = 0; i < QUANT_CANAIS; i++) {
-      Serial.print("Lendo canal ");
-      Serial.println(i+1);
-      int media = canais[i].getMedia();
-      Serial.print("MEDIA: ");
-      Serial.println(media);
-      if (media < SOLO_SECO) {
-        Serial.println("Solo seco...");
-        Serial.println("Solicitar irrigacao!");
-        int resul = getCaixaByCanalAndMes(MES, canais[i].getNome());   
-        Serial.print("CAIXA: ");
-        Serial.println(resul);
-        if (resul == 1){
-          digitalWrite(caixa1, HIGH);
-          digitalWrite(caixa2, LOW);
-          digitalWrite(caixa3, LOW);
-        }
-        else if (resul == 2){
-          digitalWrite(caixa1, LOW);
-          digitalWrite(caixa2, HIGH);
-          digitalWrite(caixa3, LOW);
-        }
-        else if (resul == 3){
-          digitalWrite(caixa1, LOW);
-          digitalWrite(caixa2, LOW);
-          digitalWrite(caixa3, HIGH);
-        }
-        else if (resul == -1) {
-          Serial.println("Mes e canal nao possuem caixa ainda...");  
-        }
-        else {
-          digitalWrite(caixa1, LOW);
-          digitalWrite(caixa2, LOW);
-          digitalWrite(caixa3, LOW);
+      if (recebido == "t") {
+        Serial.println("*** Exibindo temperatura e umidade do ar *** ");
+        Serial.println();
+        if(!dht.ler()) {
+          Serial.print("Temperatura: ");
+          Serial.println(dht.getTemp());
+          Serial.print("Umidade: ");
+          Serial.println(dht.getUmi()); 
         }
       }
       else {
-        Serial.println("Nao eh necessario irrigar...");  
-      }
-      Serial.println();
+       Serial.println();
+       Serial.println(); 
+       Serial.print("*** Lendo configuracoes para o mes ");
+       MES = recebido.toInt();
+       EEPROM.write(0, MES);
+       Serial.print(MES);
+       Serial.println(" ***");
+       Serial.println();
+       Serial.println("-------------------");
+       for (int i = 0; i < QUANT_CANAIS; i++) {
+          Serial.print("Lendo canal ");
+          Serial.println(i+1);
+          int media = canais[i].getMedia();
+          Serial.print("MEDIA: ");
+          Serial.println(media);
+          if (media < SOLO_SECO) {
+            Serial.println("Solo seco...");
+            Serial.println("Solicitar irrigacao!");
+            int resul = getCaixaByCanalAndMes(MES, canais[i].getNome());   
+            Serial.print("CAIXA: ");
+            Serial.println(resul);
+            if (resul == 1){
+              digitalWrite(caixa1, HIGH);
+              digitalWrite(caixa2, LOW);
+              digitalWrite(caixa3, LOW);
+            }
+            else if (resul == 2){
+              digitalWrite(caixa1, LOW);
+              digitalWrite(caixa2, HIGH);
+              digitalWrite(caixa3, LOW);
+            }
+            else if (resul == 3){
+              digitalWrite(caixa1, LOW);
+              digitalWrite(caixa2, LOW);
+              digitalWrite(caixa3, HIGH);
+            }
+            else if (resul == -1) {
+              Serial.println("Mes e canal nao possuem caixa ainda...");  
+            }
+            else {
+              digitalWrite(caixa1, LOW);
+              digitalWrite(caixa2, LOW);
+              digitalWrite(caixa3, LOW);
+            }
+          }
+          else {
+            Serial.println("Nao eh necessario irrigar...");  
+          }
+          Serial.println("-------------------");
+          Serial.println();
+        }
+        Serial.println("*** Fim do processo ***");
+        delay(50);
+        digitalWrite(caixa1, LOW);
+        digitalWrite(caixa2, LOW);
+        digitalWrite(caixa3, LOW);
+        Serial.println();
+        Serial.println();
+      } 
     }
-    Serial.println("Fim do processo!");
-    delay(50);
-    digitalWrite(caixa1, LOW);
-    digitalWrite(caixa2, LOW);
-    digitalWrite(caixa3, LOW);
-    Serial.println();
-    Serial.println();
-  }*/
+  delay(20);
 }
 
 int getCaixaByCanalAndMes(int mes, int canal) {
@@ -159,7 +148,6 @@ int getCaixaByCanalAndMes(int mes, int canal) {
 String leStringSerial(){
   char caractere;
   String conteudo;
-  Serial.println("Lendo comandos");
   while(Serial.available() > 0) {
     caractere = Serial.read();
     if (caractere != '\n'){
@@ -168,27 +156,4 @@ String leStringSerial(){
     delay(10);
   }
   return conteudo;
-}
-
-void lerSensor() {
-  Serial.println("VALOR DO SENSOR BUTRO ==> ");
-  Serial.println(analogRead(SENSOR_UMI_SOLO1));
-
-  int anaValue;
-  digitalWrite(SMS_VCC, LOW);
-  digitalWrite(SMS_GND, HIGH);
-  delay(3000);
-  anaValue = analogRead(A1); // Lendo valor analógico da porta setada no construtor
-  digitalWrite(SMS_VCC, HIGH);
-  digitalWrite(SMS_GND, LOW);
-  delay(3000);
-  digitalWrite(SMS_VCC, LOW);
-  digitalWrite(SMS_GND, LOW);
-
-  Serial.println(anaValue);
-
-  anaValue = map(anaValue, 1023, 0, 100, 0);
-
-  Serial.println(anaValue);
-
 }
