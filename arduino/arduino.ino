@@ -1,6 +1,7 @@
 #include "canal.cpp";
 #include "matriz.cpp";
 #include "sensor_de_temp_umi.cpp";
+#include "sensor_de_luz.cpp";
 #include <EEPROM.h>
 
 #define caixa1 2
@@ -16,6 +17,11 @@
 
 #define SOLO_SECO 40
 #define SOLO_UMIDO 60
+
+#define SENSOR_LUZ A0
+#define NOITE 80
+
+Ldr ldr1(SENSOR_LUZ);
 
 #define DHTPIN 8
 #define DHTTYPE DHT11 // DHT 11
@@ -35,9 +41,11 @@ int comando = 0;
 
 int getCaixaByCanalAndMes(int mes, int canal);
 String leStringSerial();
+void iniciarProcesso();
 
 void setup() {
   pinMode(SENSOR_UMI_SOLO1, INPUT);
+  pinMode(SENSOR_LUZ, INPUT);
   pinMode(caixa1, OUTPUT);
   pinMode(caixa2, OUTPUT);
   pinMode(caixa3, OUTPUT);
@@ -46,19 +54,14 @@ void setup() {
   Serial.begin(9600);
   dht.iniciar();
   delay(2000);
-  comando = EEPROM.read(1);
-  if (comando == 0 || comando == 1) {
-  }
-  else {
-    comando = 0;
-  }
+  MES = EEPROM.read(0);
 }
   
 void loop() {
   if (Serial.available() > 0){
       String recebido = leStringSerial();
-      if (recebido == "t") {
-        Serial.println("*** Exibindo temperatura e umidade do ar *** ");
+      if (recebido == "s") {
+        Serial.println("*** Dados dos sensores extras *** ");
         Serial.println();
         if(!dht.ler()) {
           Serial.print("Temperatura: ");
@@ -66,69 +69,95 @@ void loop() {
           Serial.print("Umidade: ");
           Serial.println(dht.getUmi()); 
         }
+        ldr1.ler();
+        Serial.print("Luminosidade: ");
+        Serial.println(ldr1.getValor());
       }
       else {
-       Serial.println();
        Serial.println(); 
        Serial.print("*** Lendo configuracoes para o mes ");
        MES = recebido.toInt();
-       EEPROM.write(0, MES);
        Serial.print(MES);
        Serial.println(" ***");
-       Serial.println();
-       Serial.println("-------------------");
-       for (int i = 0; i < QUANT_CANAIS; i++) {
-          Serial.print("Lendo canal ");
-          Serial.println(i+1);
-          int media = canais[i].getMedia();
-          Serial.print("MEDIA: ");
-          Serial.println(media);
-          if (media < SOLO_SECO) {
-            Serial.println("Solo seco...");
-            Serial.println("Solicitar irrigacao!");
-            int resul = getCaixaByCanalAndMes(MES, canais[i].getNome());   
-            Serial.print("CAIXA: ");
-            Serial.println(resul);
-            if (resul == 1){
-              digitalWrite(caixa1, HIGH);
-              digitalWrite(caixa2, LOW);
-              digitalWrite(caixa3, LOW);
-            }
-            else if (resul == 2){
-              digitalWrite(caixa1, LOW);
-              digitalWrite(caixa2, HIGH);
-              digitalWrite(caixa3, LOW);
-            }
-            else if (resul == 3){
-              digitalWrite(caixa1, LOW);
-              digitalWrite(caixa2, LOW);
-              digitalWrite(caixa3, HIGH);
-            }
-            else if (resul == -1) {
-              Serial.println("Mes e canal nao possuem caixa ainda...");  
-            }
-            else {
-              digitalWrite(caixa1, LOW);
-              digitalWrite(caixa2, LOW);
-              digitalWrite(caixa3, LOW);
-            }
-          }
-          else {
-            Serial.println("Nao eh necessario irrigar...");  
-          }
-          Serial.println("-------------------");
-          Serial.println();
-        }
-        Serial.println("*** Fim do processo ***");
-        delay(50);
-        digitalWrite(caixa1, LOW);
-        digitalWrite(caixa2, LOW);
-        digitalWrite(caixa3, LOW);
-        Serial.println();
-        Serial.println();
-      } 
+       if (MES < 1) {
+        Serial.println(" %%% Mes enviado esta invalido! %%% ");
+        MES = EEPROM.read(0);
+       }else {
+        EEPROM.write(0, MES);
+        iniciarProcesso();
+       }
+       delay(1000);
     }
+  }
+  iniciarProcesso();
   delay(20);
+}
+
+void iniciarProcesso() {
+  ldr1.ler();
+  if (ldr1.getValor() < NOITE) {
+    Serial.println();
+    Serial.println("%%% Nao eh necessario irrigar (NOITE) %%%");
+    Serial.println();
+    delay(2000);
+  }
+  else {
+   Serial.println();
+  Serial.println();
+   Serial.print("%%% Iniciando Rotina para mes ");
+   Serial.print(MES);
+   Serial.println(" %%%");
+   Serial.println("-------------------");
+   for (int i = 0; i < QUANT_CANAIS; i++) {
+      Serial.print("Lendo canal ");
+      Serial.println(i+1);
+      int media = canais[i].getMedia();
+      Serial.print("MEDIA: ");
+      Serial.println(media);
+      if (media < SOLO_SECO) {
+        Serial.println("Solo seco...");
+        Serial.println("Solicitar irrigacao!");
+        int resul = getCaixaByCanalAndMes(MES, canais[i].getNome());   
+        Serial.print("CAIXA: ");
+        Serial.println(resul);
+        if (resul == 1){
+          digitalWrite(caixa1, HIGH);
+          digitalWrite(caixa2, LOW);
+          digitalWrite(caixa3, LOW);
+        }
+        else if (resul == 2){
+          digitalWrite(caixa1, LOW);
+          digitalWrite(caixa2, HIGH);
+          digitalWrite(caixa3, LOW);
+        }
+        else if (resul == 3){
+          digitalWrite(caixa1, LOW);
+          digitalWrite(caixa2, LOW);
+          digitalWrite(caixa3, HIGH);
+        }
+        else if (resul == -1) {
+          Serial.println("Mes e canal nao possuem caixa ainda...");  
+        }
+        else {
+          digitalWrite(caixa1, LOW);
+          digitalWrite(caixa2, LOW);
+          digitalWrite(caixa3, LOW);
+        }
+      }
+      else {
+        Serial.println("Nao eh necessario irrigar...");  
+      }
+      Serial.println("-------------------");
+      Serial.println();
+    }
+    Serial.println("*** Fim do processo ***");
+    delay(50);
+    digitalWrite(caixa1, LOW);
+    digitalWrite(caixa2, LOW);
+    digitalWrite(caixa3, LOW);
+    Serial.println();
+    Serial.println(); 
+  }
 }
 
 int getCaixaByCanalAndMes(int mes, int canal) {
