@@ -52,7 +52,7 @@ void loop() {
     }
   }
   digitalWrite(BOMBA, LOW);
-  delay(20);
+  delay(100);
 }
 
 void liberarSolucao() {
